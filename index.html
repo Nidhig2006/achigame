@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Achi (Tic-Tac-Toe) vs Computer with Move Mode</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    margin: 20px;
+  }
+  h1 {
+    margin-bottom: 10px;
+  }
+  #board {
+    display: grid;
+    grid-template-columns: repeat(3, 100px);
+    grid-template-rows: repeat(3, 100px);
+    gap: 5px;
+    justify-content: center;
+    margin: 20px auto;
+  }
+  .cell {
+    background: #f0f0f0;
+    border: 2px solid #333;
+    font-size: 48px;
+    font-weight: bold;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+  }
+  .cell.disabled {
+    cursor: not-allowed;
+    color: #999;
+  }
+  .selected {
+    background: #d0eaff;
+    border-color: #3399ff;
+  }
+  #status {
+    font-size: 20px;
+    margin-top: 15px;
+    min-height: 1.2em;
+  }
+  button {
+    margin-top: 20px;
+    padding: 10px 20px;
+    font-size: 16px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Achi (Tic-Tac-Toe) vs Computer (Move Mode)</h1>
+<div id="board">
+  <!-- 9 cells -->
+  <div class="cell" data-index="0"></div>
+  <div class="cell" data-index="1"></div>
+  <div class="cell" data-index="2"></div>
+  <div class="cell" data-index="3"></div>
+  <div class="cell" data-index="4"></div>
+  <div class="cell" data-index="5"></div>
+  <div class="cell" data-index="6"></div>
+  <div class="cell" data-index="7"></div>
+  <div class="cell" data-index="8"></div>
+</div>
+
+<div id="status">Your turn: Place your X (max 4 placements)</div>
+<button id="restartBtn">Restart Game</button>
+
+<script>
+  const boardElem = document.getElementById('board');
+  const statusElem = document.getElementById('status');
+  const restartBtn = document.getElementById('restartBtn');
+
+  let board = ["", "", "", "", "", "", "", "", ""];
+  const player = "X";
+  const computer = "O";
+  const wins = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+
+  let gameOver = false;
+  let playerPlacements = 0; // counts how many X placed initially (max 4)
+  let moveMode = false;      // true when player must move a selected X
+  let selectedIndex = null;  // index of selected X to move
+
+  function checkWin(symbol) {
+    return wins.some(combo => combo.every(i => board[i] === symbol));
+  }
+
+  function checkDraw() {
+    return board.every(cell => cell !== "");
+  }
+
+  function computerMove() {
+    if(gameOver) return;
+
+    // Simple AI: same as before but with move mode logic
+    // Computer places Os up to 4 moves, then moves existing Os like player
+
+    let computerPlacements = board.filter(c => c === computer).length;
+
+    if(computerPlacements < 4) {
+      // Place new O
+      // 1. Try to win
+      for(let i=0; i<9; i++) {
+        if(board[i] === "") {
+          board[i] = computer;
+          if(checkWin(computer)) {
+            updateBoard();
+            gameOver = true;
+            statusElem.textContent = "Computer wins! You lost.";
+            return;
+          }
+          board[i] = "";
+        }
+      }
+      // 2. Block player win
+      for(let i=0; i<9; i++) {
+        if(board[i] === "") {
+          board[i] = player;
+          if(checkWin(player)) {
+            board[i] = computer;
+            updateBoard();
+            statusElem.textContent = "Your turn: Place your X (max 4 placements)";
+            return;
+          }
+          board[i] = "";
+        }
+      }
+      // 3. Take center
+      if(board[4] === "") {
+        board[4] = computer;
+        updateBoard();
+        statusElem.textContent = "Your turn: Place your X (max 4 placements)";
+        return;
+      }
+      // 4. Random corner
+      const corners = [0,2,6,8].filter(i => board[i] === "");
+      if(corners.length > 0) {
+        let choice = corners[Math.floor(Math.random() * corners.length)];
+        board[choice] = computer;
+        updateBoard();
+        statusElem.textContent = "Your turn: Place your X (max 4 placements)";
+        return;
+      }
+      // 5. Random side
+      const sides = [1,3,5,7].filter(i => board[i] === "");
+      if(sides.length > 0) {
+        let choice = sides[Math.floor(Math.random() * sides.length)];
+        board[choice] = computer;
+        updateBoard();
+        statusElem.textContent = "Your turn: Place your X (max 4 placements)";
+        return;
+      }
+    } else {
+      // Move existing O to empty spot
+      // Find O to move and empty spot (simple random)
+      const oIndices = board.map((c,i) => c === computer ? i : -1).filter(i => i !== -1);
+      const emptyIndices = board.map((c,i) => c === "" ? i : -1).filter(i => i !== -1);
+
+      if(emptyIndices.length === 0) {
+        // No moves possible
+        return;
+      }
+
+      // Pick random O to move
+      let from = oIndices[Math.floor(Math.random() * oIndices.length)];
+      let to = emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+
+      // Move O
+      board[from] = "";
+      board[to] = computer;
+      updateBoard();
+
+      if(checkWin(computer)) {
+        gameOver = true;
+        statusElem.textContent = "Computer wins! You lost.";
+        return;
+      }
+
+      statusElem.textContent = "Your turn: Move your X";
+    }
+  }
+
+  function updateBoard() {
+    const cells = document.querySelectorAll('.cell');
+    cells.forEach((cell, i) => {
+      cell.textContent = board[i];
+      cell.classList.remove('disabled', 'selected');
+      if(gameOver) {
+        cell.classList.add('disabled');
+      } else if (moveMode) {
+        // In move mode player can only select own X or empty cells (for placing moved X)
+        if(selectedIndex === null) {
+          // Waiting for player to pick X to move
+          if(board[i] === player) {
+            cell.classList.remove('disabled');
+          } else {
+            cell.classList.add('disabled');
+          }
+        } else {
+          // Waiting for player to pick empty cell to move selected X
+          if(board[i] === "") {
+            cell.classList.remove('disabled');
+          } else {
+            cell.classList.add('disabled');
+          }
+          // Highlight selected X
+          if(i === selectedIndex) cell.classList.add('selected');
+        }
+      } else {
+        // Normal mode - allow placing on empty cells only
+        if(board[i] === "") {
+          cell.classList.remove('disabled');
+        } else {
+          cell.classList.add('disabled');
+        }
+      }
+    });
+  }
+
+  function playerMove(index) {
+    if(gameOver) return;
+
+    if(!moveMode) {
+      // Placement mode
+      if(board[index] !== "") return; // must be empty
+
+      if(playerPlacements < 4) {
+        board[index] = player;
+        playerPlacements++;
+
+        updateBoard();
+
+        if(checkWin(player)) {
+          gameOver = true;
+          statusElem.textContent = "You win! Congratulations! 🎉";
+          return;
+        }
+
+        if(checkDraw()) {
+          gameOver = true;
+          statusElem.textContent = "It's a draw!";
+          return;
+        }
+
+        if(playerPlacements === 4) {
+          // Switch to move mode
+          moveMode = true;
+          selectedIndex = null;
+          statusElem.textContent = "Your turn: Select one of your X to move.";
+          setTimeout(() => {
+            computerMove();
+            if(!gameOver && checkDraw()) {
+              gameOver = true;
+              statusElem.textContent = "It's a draw!";
+            }
+          }, 700);
+          return;
+        }
+
+        statusElem.textContent = `Your turn: Place your X (max 4 placements). Moves used: ${playerPlacements}/4`;
+
+        setTimeout(() => {
+          computerMove();
+          if(!gameOver && checkDraw()) {
+            gameOver = true;
+            statusElem.textContent = "It's a draw!";
+          }
+        }, 700);
+      }
+    } else {
+      // Move mode: player must first select their X to move, then select empty cell to move it to
+      if(selectedIndex === null) {
+        // select X to move
+        if(board[index] === player) {
+          selectedIndex = index;
+          statusElem.textContent = "Selected X. Now click on empty cell to move it.";
+          updateBoard();
+        }
+      } else {
+        // select empty cell to place the moved X
+        if(board[index] === "") {
+          // Move X
+          board[selectedIndex] = "";
+          board[index] = player;
+          selectedIndex = null;
+          updateBoard();
+
+          if(checkWin(player)) {
+            gameOver = true;
+            statusElem.textContent = "You win! Congratulations! 🎉";
+            return;
+          }
+
+          if(checkDraw()) {
+            gameOver = true;
+            statusElem.textContent = "It's a draw!";
+            return;
+          }
+
+          statusElem.textContent = "Your turn: Move your X";
+          // Computer move next
+          setTimeout(() => {
+            computerMove();
+            if(!gameOver && checkDraw()) {
+              gameOver = true;
+              statusElem.textContent = "It's a draw!";
+            }
+          }, 700);
+        }
+      }
+    }
+  }
+
+  boardElem.addEventListener('click', (e) => {
+    if(!e.target.classList.contains('cell')) return;
+    const idx = parseInt(e.target.getAttribute('data-index'));
+    playerMove(idx);
+  });
+
+  restartBtn.addEventListener('click', () => {
+    board = ["", "", "", "", "", "", "", "", ""];
+    gameOver = false;
+    playerPlacements = 0;
+    moveMode = false;
+    selectedIndex = null;
+    statusElem.textContent = "Your turn: Place your X (max 4 placements)";
+    updateBoard();
+  });
+
+  updateBoard();
+</script>
+
+</body>
+</html>
